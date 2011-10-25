@@ -1,0 +1,827 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>cern.data.tsv &mdash; PyLHC v0 documentation</title>
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="PyLHC v0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyLHC v0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for cern.data.tsv</h1><div class="highlight"><pre>
+<span class="c"># Copyright 2011 CERN</span>
+
+<span class="c">#    This file is part of PyLHC.</span>
+<span class="c">#</span>
+<span class="c">#    PyLHC is free software: you can redistribute it and/or modify</span>
+<span class="c">#    it under the terms of the GNU General Public License as published by</span>
+<span class="c">#    the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c">#    (at your option) any later version.</span>
+<span class="c">#</span>
+<span class="c">#    PyLHC is distributed in the hope that it will be useful,</span>
+<span class="c">#    but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c">#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c">#    GNU General Public License for more details.</span>
+<span class="c">#</span>
+<span class="c">#    You should have received a copy of the GNU General Public License</span>
+<span class="c">#    along with PyLHC.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+
+
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">calendar</span> <span class="kn">import</span> <span class="n">timegm</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">from</span> <span class="nn">array</span> <span class="kn">import</span> <span class="n">array</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">tsvObj</span> <span class="kn">import</span> <span class="n">TSVelement</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="sd">.. module:: tsv</span>
+<span class="sd">    :synopsis: Read in and manipulate data in a TSV format. </span>
+<span class="sd">    :todo: Not have single value arrays in [[],[]] format anymore (it&#39;s dumb!)</span>
+<span class="sd">    :todo: Use underscore for local functions</span>
+<span class="sd"> </span>
+<span class="sd">     The idea is that this library could be generic enough to do</span>
+<span class="sd">     manipulation on TSV objects for multiple projects that want to</span>
+<span class="sd">     export data from TIMBER and handle them in python scripts.</span>
+<span class="sd">     Future recommendation is that all data should be in numpy arrays,</span>
+<span class="sd">     and timestamps in datetime arrays. This is not yet 100% implemented.</span>
+<span class="sd"> </span>
+<span class="sd">.. moduleauthor Yngve Inntjore Levinsen</span>
+<span class="sd">&#39;&#39;&#39;</span>
+    
+<span class="k">def</span> <span class="nf">date2num</span><span class="p">(</span><span class="n">dt</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="date2num"><a class="viewcode-back" href="../../../cern/index.html#cern.data.tsv.date2num">[docs]</a><span class="sd">     Stolen from matplotlib</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="nb">iter</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span> <span class="c"># not a list</span>
+        <span class="k">return</span> <span class="n">_to_ordinalf</span><span class="p">(</span><span class="n">dt</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">_to_ordinalf</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">dt</span><span class="p">])</span>
+
+<span class="c">##</span>
+<span class="c"># @brief Stolen from matplotlib        </span>
+<span class="k">def</span> <span class="nf">_to_ordinalf</span><span class="p">(</span><span class="n">dt</span><span class="p">):</span>
+    <span class="n">base</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">toordinal</span><span class="p">()</span></div>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="s">&#39;hour&#39;</span><span class="p">):</span>
+        <span class="n">base</span> <span class="o">+=</span> <span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">hour</span><span class="o">/</span><span class="mf">24.</span> <span class="o">+</span> 
+                    <span class="n">dt</span><span class="o">.</span><span class="n">minute</span><span class="o">/</span><span class="p">(</span><span class="mf">60.</span><span class="o">*</span><span class="mi">24</span><span class="p">)</span> <span class="o">+</span> 
+                    <span class="n">dt</span><span class="o">.</span><span class="n">second</span><span class="o">/</span><span class="p">(</span><span class="mf">3600.</span><span class="o">*</span><span class="mi">24</span><span class="p">)</span> <span class="o">+</span> 
+                    <span class="n">dt</span><span class="o">.</span><span class="n">microsecond</span><span class="o">/</span><span class="p">(</span><span class="mf">3600.</span><span class="o">*</span><span class="mi">24</span><span class="o">*</span><span class="mf">1e6</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">base</span>
+
+<span class="k">class</span> <span class="nc">TSVlist</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="TSVlist"><a class="viewcode-back" href="../../../cern/index.html#cern.data.tsv.TSVlist">[docs]</a><span class="sd">        TSV list object, give a TSV file name as input when initializing.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c">##</span>
+    <span class="c"># initialize object</span>
+    <span class="c"># </span>
+    <span class="c"># This initialization includes reading the file</span>
+    <span class="c"># </span>
+    <span class="c"># @param inputfile Filename of the TSV file</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">inputfile</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+            <span class="c">##  @var maxnamelength</span>
+            <span class="c"># maximum length of names in eg TFS output file</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">=</span><span class="mi">20</span> 
+            <span class="c">## @var r</span>
+            <span class="c"># For radjustment in export formats like TFS</span>
+            <span class="c"># This variable gets readjusted as new variable names are added and removed</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="o">=</span><span class="p">[</span><span class="mi">20</span><span class="p">,</span><span class="mi">20</span><span class="p">]</span>
+            <span class="c">## @var elementlist</span>
+            <span class="c"># List of TSV elements</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="o">=</span><span class="p">[]</span>
+            <span class="c">## @var parameters</span>
+            <span class="c"># list of parameters</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">=</span><span class="p">[]</span>
+            <span class="c">## @var starttime</span>
+            <span class="c"># Start time in tsv file. </span>
+            <span class="c"># Will be updated to earliest timestamp found in file</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">inputfile</span><span class="o">!=</span><span class="s">&#39;&#39;</span><span class="p">:</span>
+                    <span class="k">print</span> <span class="s">&quot;INFO: Reading file&quot;</span><span class="p">,</span><span class="n">inputfile</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">readFile</span><span class="p">(</span><span class="n">inputfile</span><span class="p">)</span>
+    
+    <span class="c"># This defines the iterator for this class</span>
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)</span>
+
+    
+    
+    <span class="k">def</span> <span class="nf">readFile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">tsvfile</span><span class="p">):</span>
+            <span class="sd">&#39;&#39;&#39;</span>
+<div class="viewcode-block" id="TSVlist.readFile"><a class="viewcode-back" href="../../../cern/index.html#cern.data.tsv.TSVlist.readFile">[docs]</a><span class="sd">             Read in a tab separated TSV file to object</span>
+<span class="sd">             </span>
+<span class="sd">             Args:</span>
+<span class="sd">                tsvfile (str): Name of file</span>
+<span class="sd">            &#39;&#39;&#39;</span>
+            <span class="n">infile</span><span class="o">=</span><span class="nb">file</span><span class="p">(</span><span class="n">tsvfile</span><span class="p">,</span><span class="s">&quot;r&quot;</span><span class="p">)</span>
+            <span class="n">thesevalues</span><span class="o">=</span><span class="p">[]</span>
+            <span class="n">ts</span><span class="o">=</span><span class="p">[]</span>
+            <span class="n">first</span><span class="o">=</span><span class="mi">0</span>
+            <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">infile</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">())</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="s">&quot;VARIABLE:&quot;</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span><span class="o">&gt;</span><span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="p">:</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">+</span><span class="mi">2</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TSVelement</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">]))</span>
+                            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="s">&quot;Unit:&quot;</span><span class="p">:</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">setUnit</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span>
+                            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="s">&quot;Description:&quot;</span><span class="p">:</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">setDescription</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:])</span>
+                            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s">&#39;20[0-1][0-9]&#39;</span><span class="p">,</span> <span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">])</span><span class="o">!=</span><span class="bp">None</span><span class="p">:</span> <span class="c"># year should fit to this regexp..</span>
+                                    <span class="n">d</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">appendReading</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+                                    <span class="k">if</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span><span class="p">:</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">starttime</span><span class="o">=</span><span class="n">d</span>
+                            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">==</span><span class="s">&#39;&gt;&gt;&gt; No data in the specified range &lt;&lt;&lt;&#39;</span><span class="p">:</span>
+                                    <span class="k">print</span> <span class="s">&#39;WARNING, variable without data: &#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span>
+                                    <span class="k">print</span> <span class="s">&#39;        Deleting this variable from list&#39;</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">infile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    
+    <span class="c">##</span>
+    <span class="c"># @brief add an element to the list</span>
+    <span class="c"># </span>
+    <span class="c"># @param name Name of new element</span>
+    <span class="c"># @param timearray Time array for new element</span>
+    <span class="c"># @param datavalues Data values corresponding to time array</span>
+    <span class="c"># @param unit Optionally give the units for the new element.</span>
+    <span class="c"># @param description Optionally give a description of the new element</span>
+    <span class="k">def</span> <span class="nf">addElement</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">,</span><span class="n">timearray</span><span class="p">,</span><span class="n">datavalues</span><span class="p">,</span><span class="n">unit</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span><span class="n">description</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">TSVelement</span><span class="p">(</span><span class="n">name</span><span class="p">))</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">setAllData</span><span class="p">(</span><span class="n">timearray</span><span class="p">,</span><span class="n">datavalues</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">description</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">setDescription</span><span class="p">(</span><span class="n">description</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">unit</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">setUnit</span><span class="p">(</span><span class="n">unit</span><span class="p">)</span>
+
+    <span class="c">##</span>
+    <span class="c"># Iterates through the list of variables and delete empty ones</span>
+    <span class="k">def</span> <span class="nf">removeEmptyVars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="n">i</span><span class="o">=</span><span class="mi">0</span>
+            <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                            <span class="k">print</span> <span class="s">&quot;INFO:&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="s">&#39;did not have any data, deleting&#39;</span>
+                            <span class="k">del</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                            <span class="n">i</span><span class="o">=</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span>
+    <span class="c">##</span>
+    <span class="c"># Print all values that have timestamp within timedelta of each other from each variable</span>
+    <span class="c"># </span>
+    <span class="c"># @warning The timestamp is from the first variable, for the others the first entry within range is used</span>
+    <span class="c"># </span>
+    <span class="c"># @param timedelta max difference in timestamp for measurements at &quot;the same time&quot;</span>
+    <span class="c"># @param filestream Optionally write the names to a stream</span>
+    <span class="k">def</span> <span class="nf">printValues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">timedelta</span><span class="p">,</span><span class="n">filestream</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+            <span class="n">tdlim</span><span class="o">=</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=-</span><span class="n">timedelta</span><span class="p">),</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">timedelta</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()):</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="p">))</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+                            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()):</span>
+                                    <span class="n">td</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">k</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span>
+                                    <span class="k">if</span> <span class="n">tdlim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">&lt;</span><span class="n">td</span><span class="o">&lt;</span><span class="n">tdlim</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="c">#measurements are within delta of each other..</span>
+                                            <span class="n">s</span><span class="o">+=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">k</span><span class="p">))</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                                            <span class="k">break</span>
+                                    <span class="k">if</span> <span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="o">==</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">():</span> <span class="c">#if this variable did not have any measurement in range</span>
+                                            <span class="n">s</span><span class="o">+=</span><span class="s">&quot;NaN&quot;</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">filestream</span><span class="o">==</span><span class="s">&#39;&#39;</span><span class="p">:</span>
+                    <span class="k">print</span> <span class="n">s</span>
+            <span class="k">else</span><span class="p">:</span>
+                    <span class="n">filestream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">s</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+    <span class="c">##</span>
+    <span class="c"># @brief print variable names with a # in front</span>
+    <span class="c"># </span>
+    <span class="c"># The names are often long and confusing, hence the range to select the part you want.</span>
+    <span class="c"># If you want the full name, call the command with the range array [0,-1].</span>
+    <span class="c"># </span>
+    <span class="c"># @param ranges array with two integers, defining the part of the names to be printed (default full name)</span>
+    <span class="c"># @param filestream Optionally write the names to a stream</span>
+    <span class="k">def</span> <span class="nf">printVarNames</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ranges</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="n">filestream</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()[</span><span class="n">ranges</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">ranges</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span><span class="o">&gt;</span><span class="mi">14</span><span class="p">:</span> <span class="c">#to make sure the line is readable...</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">())</span><span class="o">+</span><span class="mi">2</span>
+            <span class="n">s</span><span class="o">=</span><span class="s">&quot;#&quot;</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">ranges</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                            <span class="n">s</span><span class="o">+=</span><span class="n">i</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                            <span class="n">s</span><span class="o">+=</span><span class="n">i</span><span class="o">.</span><span class="n">getName</span><span class="p">()[</span><span class="n">ranges</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">ranges</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">filestream</span><span class="o">==</span><span class="s">&#39;&#39;</span><span class="p">:</span>
+                    <span class="k">print</span> <span class="n">s</span>
+            <span class="k">else</span><span class="p">:</span>
+                    <span class="n">filestream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">s</span><span class="o">+</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+    <span class="c">##</span>
+    <span class="c"># Print data to ascii format</span>
+    <span class="c"># </span>
+    <span class="c"># Plottable in e.g. gnuplot</span>
+    <span class="c"># @param timedelta see printValues</span>
+    <span class="c"># @param ranges see printVarNames</span>
+    <span class="c"># @param filename Name of ascii file</span>
+    <span class="c"># @see printValues, printVarNames</span>
+    <span class="k">def</span> <span class="nf">toAscii</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="o">=</span><span class="s">&#39;data.txt&#39;</span><span class="p">,</span><span class="n">timedelta</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">ranges</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">f</span><span class="o">=</span><span class="nb">file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">printVarNames</span><span class="p">(</span><span class="n">ranges</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">printValues</span><span class="p">(</span><span class="n">timedelta</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="c">##</span>
+    <span class="c"># write table to file in tfs format</span>
+    <span class="c"># @param filename name of file</span>
+    <span class="c"># @param basecolumn select column where the time stamps in the tfs file are taken from</span>
+    <span class="k">def</span> <span class="nf">toTFS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">,</span><span class="n">basecolumn</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+            <span class="k">print</span> <span class="s">&quot;Writing TFS table&quot;</span>
+            <span class="n">tfsfile</span><span class="o">=</span><span class="nb">file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span><span class="s">&quot;w&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+                    <span class="n">tfsfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;@ &quot;</span><span class="o">+</span><span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="o">+</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+            <span class="n">r</span><span class="o">=</span><span class="p">[</span><span class="mi">19</span><span class="p">,</span><span class="mi">15</span><span class="p">]</span>
+            <span class="n">s</span><span class="o">=</span><span class="s">&quot;*&quot;</span><span class="o">+</span><span class="s">&quot;Timestamp&quot;</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">:</span>
+                    <span class="n">s</span><span class="o">+=</span><span class="n">l</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">tfsfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">s</span><span class="o">+</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+            <span class="n">s</span><span class="o">=</span><span class="s">&quot;$&quot;</span><span class="o">+</span><span class="s">&quot;&quot;</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">:</span>
+                    <span class="n">s</span><span class="o">+=</span><span class="n">l</span><span class="o">.</span><span class="n">getUnit</span><span class="p">()</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">tfsfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">s</span><span class="o">+</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+=</span><span class="mi">1</span>
+            <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">createTableToStamps</span><span class="p">(</span><span class="n">basecolumn</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">,:])):</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">j</span><span class="p">])</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])):</span>
+                            <span class="n">s</span><span class="o">+=</span><span class="nb">str</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">k</span><span class="p">,</span><span class="n">j</span><span class="p">])</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">tfsfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">s</span><span class="o">+</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+    <span class="c">##</span>
+    <span class="c"># @brief Correlate all other variables to the given one</span>
+    <span class="c"># </span>
+    <span class="c"># </span>
+    <span class="c"># This function takes in one parameter name, and if it exists calculates the </span>
+    <span class="c"># correlation between this one and all other values. It will rescale all other values</span>
+    <span class="c"># to have one entry at each time-stamp of the main parameter.</span>
+    <span class="c"># </span>
+    <span class="c"># @param vname Name of variable to be correlated against</span>
+    <span class="c"># @param fname File name to write correlation results in (optional, no writing if not given)</span>
+    <span class="c"># @return The correlation vector</span>
+    <span class="c">#</span>
+    <span class="k">def</span> <span class="nf">correlateToValue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vname</span><span class="p">,</span> <span class="n">fname</span><span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">):</span>
+            <span class="n">vnum</span><span class="o">=</span><span class="mi">0</span>
+            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">!=</span><span class="n">vname</span><span class="p">:</span>
+                    <span class="n">vnum</span><span class="o">+=</span><span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">vnum</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">):</span>
+                            <span class="k">print</span> <span class="s">&quot;Did not find &quot;</span><span class="p">,</span><span class="n">vname</span>
+                            <span class="k">return</span>
+            <span class="k">print</span> <span class="s">&quot;Found &quot;</span><span class="o">+</span><span class="n">vname</span><span class="o">+</span><span class="s">&quot;, now correlating&quot;</span>
+            <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">createTableToStamps</span><span class="p">(</span><span class="n">vnum</span><span class="p">)</span>
+            <span class="n">w</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+            <span class="n">ret</span><span class="o">=</span><span class="n">w</span><span class="p">[</span><span class="n">vnum</span><span class="p">,:]</span>
+            <span class="k">if</span> <span class="n">fname</span><span class="o">!=</span><span class="s">&quot;&quot;</span><span class="p">:</span>
+                    <span class="n">rfile</span><span class="o">=</span><span class="nb">file</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span><span class="s">&quot;w&quot;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+                            <span class="n">rfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">+</span><span class="mi">3</span><span class="p">)</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">ret</span><span class="p">[</span><span class="n">x</span><span class="p">])</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ret</span>
+    <span class="c">##</span>
+    <span class="c"># Same as correlateToValue, but within a time window only</span>
+    <span class="c"># </span>
+    <span class="c">#</span>
+    <span class="k">def</span> <span class="nf">correlateInTimeWindow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vname</span><span class="p">,</span><span class="n">tbegin</span><span class="p">,</span><span class="n">tend</span><span class="p">,</span><span class="n">fname</span><span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">):</span>
+            <span class="n">vnum</span><span class="o">=</span><span class="mi">0</span>
+            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">!=</span><span class="n">vname</span><span class="p">:</span>
+                    <span class="n">vnum</span><span class="o">+=</span><span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">vnum</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">):</span>
+                            <span class="k">print</span> <span class="s">&quot;Did not find &quot;</span><span class="p">,</span><span class="n">vname</span>
+                            <span class="k">return</span>
+            <span class="k">print</span> <span class="s">&quot;Found &quot;</span><span class="p">,</span><span class="n">vname</span><span class="p">,</span><span class="s">&quot;</span><span class="se">\t</span><span class="s">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="s">&quot;, now correlating&quot;</span>
+            <span class="n">beginset</span><span class="o">=</span><span class="bp">False</span>
+            <span class="n">endset</span><span class="o">=</span><span class="bp">False</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()):</span>
+                    <span class="k">if</span> <span class="n">beginset</span><span class="o">==</span><span class="bp">False</span> <span class="ow">and</span> <span class="n">tbegin</span><span class="o">&lt;=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">x</span><span class="p">]:</span>
+                            <span class="n">istart</span><span class="o">=</span><span class="n">x</span>
+                            <span class="n">beginset</span><span class="o">=</span><span class="bp">True</span>
+                    <span class="k">if</span> <span class="n">endset</span><span class="o">==</span><span class="bp">False</span> <span class="ow">and</span> <span class="n">tend</span><span class="o">==</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">x</span><span class="p">]:</span>
+                            <span class="n">iend</span><span class="o">=</span><span class="n">x</span>
+                            <span class="n">endset</span><span class="o">=</span><span class="bp">True</span>
+                    <span class="k">if</span> <span class="n">endset</span><span class="o">==</span><span class="bp">False</span> <span class="ow">and</span> <span class="n">tend</span><span class="o">&lt;</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">x</span><span class="p">]:</span>
+                            <span class="n">iend</span><span class="o">=</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span>
+                            <span class="n">endset</span><span class="o">=</span><span class="bp">True</span>
+            <span class="k">if</span> <span class="n">endset</span><span class="o">==</span><span class="bp">False</span><span class="p">:</span>
+                    <span class="n">iend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">beginset</span><span class="o">==</span><span class="bp">False</span><span class="p">:</span>
+                    <span class="k">print</span> <span class="s">&quot;Wrong start time specified&quot;</span>
+                    <span class="k">return</span>
+            <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">createTableToStamps</span><span class="p">(</span><span class="n">vnum</span><span class="p">,</span><span class="n">istart</span><span class="p">,</span><span class="n">iend</span><span class="p">)</span>
+            <span class="n">w</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+            <span class="n">ret</span><span class="o">=</span><span class="n">w</span><span class="p">[</span><span class="n">vnum</span><span class="p">,:]</span>
+            <span class="k">if</span> <span class="n">fname</span><span class="o">!=</span><span class="s">&quot;&quot;</span><span class="p">:</span>
+                    <span class="n">rfile</span><span class="o">=</span><span class="nb">file</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span><span class="s">&quot;w&quot;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+                            <span class="n">rfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">+</span><span class="mi">3</span><span class="p">)</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">ret</span><span class="p">[</span><span class="n">x</span><span class="p">])</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ret</span>
+    
+    <span class="c">##</span>
+    <span class="c"># @brief give a matrix with values from all parameters at given timestamps</span>
+    <span class="c"># </span>
+    <span class="c"># Takes the timestamps from the given variable defined by vnum and calculates</span>
+    <span class="c"># the according values for all other parameters at those timestamps.</span>
+    <span class="c"># Used for e.g. correlateToValue and toTFS functions</span>
+    <span class="c"># </span>
+    <span class="c"># @param vnum Number ID of given variable.</span>
+    <span class="c"># @param istart (optional) index to start from</span>
+    <span class="c"># @param iend (optional) index to end at</span>
+    <span class="c"># @return Matrix with values from all variables.</span>
+    <span class="c"># @todo this crashes for matrix elements..</span>
+    <span class="k">def</span> <span class="nf">createTableToStamps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">vnum</span><span class="p">,</span><span class="n">istart</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">iend</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">iend</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                    <span class="n">iend</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span><span class="o">-</span><span class="mi">1</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">),</span><span class="n">iend</span><span class="o">-</span><span class="n">istart</span><span class="p">))</span>
+            <span class="n">mytimes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">istart</span><span class="p">:</span><span class="n">iend</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="n">i</span><span class="o">==</span><span class="n">vnum</span><span class="p">:</span>
+                            <span class="n">newvals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getValues</span><span class="p">()[</span><span class="n">istart</span><span class="p">:</span><span class="n">iend</span><span class="p">]</span>
+                            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">newvals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+                                    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">newvals</span><span class="p">)):</span>
+                                            <span class="n">newvals</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">=</span><span class="n">newvals</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                            <span class="n">tstampequal</span><span class="o">=</span><span class="bp">True</span>
+                            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mytimes</span><span class="p">)):</span>
+                                    <span class="k">if</span> <span class="n">mytimes</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">!=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+                                            <span class="n">tstampequal</span><span class="o">=</span><span class="bp">False</span>
+                                            <span class="k">break</span>
+                            <span class="k">if</span> <span class="n">tstampequal</span><span class="p">:</span>
+                                    <span class="n">newvals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getValues</span><span class="p">()[</span><span class="n">istart</span><span class="p">:</span><span class="n">iend</span><span class="p">]</span>
+                                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">newvals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+                                            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">newvals</span><span class="p">)):</span>
+                                                    <span class="n">newvals</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">=</span><span class="n">newvals</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                    <span class="n">newvals</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getValAtTimes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span> <span class="n">mytimes</span><span class="p">)</span>
+                    <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">,:]</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">newvals</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">y</span>
+            
+    <span class="c">##</span>
+    <span class="c"># Add parameters to the object</span>
+    <span class="c"># </span>
+    <span class="c"># @param name Name of parameter</span>
+    <span class="c"># @param unit Units of the parameter</span>
+    <span class="c"># @param value Value of the parameter</span>
+    <span class="k">def</span> <span class="nf">addParameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">,</span><span class="n">unit</span><span class="p">,</span><span class="n">value</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">name</span><span class="p">,</span><span class="n">unit</span><span class="p">,</span><span class="n">value</span><span class="p">])</span>
+    <span class="c">##</span>
+    <span class="c"># Plot a variable asfo the timestamp and save to file</span>
+    <span class="c"># </span>
+    <span class="c"># @param vname variable name (must be exact)</span>
+    <span class="c"># @param fname filename of plot (must include suffix, e.g. .png)</span>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">vname</span><span class="p">,</span><span class="n">fname</span><span class="p">):</span>
+            <span class="kn">from</span> <span class="nn">matplotlib.dates</span> <span class="kn">import</span> <span class="n">plot_date</span><span class="p">,</span> <span class="n">savefig</span>
+            <span class="n">vnum</span><span class="o">=</span><span class="mi">0</span>
+            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">!=</span><span class="n">vname</span><span class="p">:</span>
+                    <span class="n">vnum</span><span class="o">+=</span><span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">vnum</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">varnames</span><span class="p">):</span>
+                            <span class="k">print</span> <span class="s">&quot;Did not find &quot;</span><span class="p">,</span><span class="n">vname</span>
+                            <span class="k">return</span>
+            <span class="k">print</span> <span class="s">&quot;found &quot;</span><span class="p">,</span><span class="n">vname</span><span class="p">,</span><span class="s">&quot;</span><span class="se">\t</span><span class="s">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="s">&quot;, now plotting&quot;</span>
+            <span class="n">plot_date</span><span class="p">(</span><span class="n">date2num</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()),</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValues</span><span class="p">(),</span> <span class="n">fmt</span><span class="o">=</span><span class="s">&#39;-&#39;</span><span class="p">)</span>
+            <span class="n">savefig</span><span class="p">(</span><span class="n">fname</span><span class="o">+</span><span class="s">&quot;.pdf&quot;</span><span class="p">)</span>
+    <span class="c">##</span>
+    <span class="c"># @brief Smoothening a variable using interpolation</span>
+    <span class="c"># @param varname name of variable to be smoothed</span>
+    <span class="k">def</span> <span class="nf">smoothThisVariable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&quot;Smoothening&quot;</span><span class="p">,</span><span class="n">varname</span>
+        <span class="n">vnum</span><span class="o">=</span><span class="mi">0</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">!=</span><span class="n">varname</span><span class="p">:</span>
+            <span class="n">vnum</span><span class="o">+=</span><span class="mi">1</span>
+            <span class="k">if</span> <span class="n">vnum</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">):</span>
+                <span class="k">print</span> <span class="s">&quot;Did not find &quot;</span><span class="p">,</span><span class="n">varname</span>
+                <span class="k">return</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">!=</span><span class="mf">0.0</span> <span class="ow">and</span> <span class="nb">abs</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">:</span>
+                    <span class="c"># smoothen this point:</span>
+                    <span class="n">dT</span><span class="o">=</span><span class="p">(</span><span class="n">date2num</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span><span class="o">-</span><span class="n">date2num</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+                    <span class="n">dT1</span><span class="o">=</span><span class="p">(</span><span class="n">date2num</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">i</span><span class="p">])</span><span class="o">-</span><span class="n">date2num</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+                <span class="k">if</span> <span class="n">dT1</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="n">i</span><span class="p">,(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="n">dT</span><span class="o">*</span><span class="n">dT1</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">vnum</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="c">##</span>
+    <span class="c"># @brief Removes a regexp from all variable names</span>
+    <span class="c"># </span>
+    <span class="c"># Used to remove unneeded part of names. This is difficiult to do automatically</span>
+    <span class="c"># so instead you have to do it manually... A regexp can also be a string, but</span>
+    <span class="c"># watch out for special characters, e.g. . ^ $ [ ] ...</span>
+    <span class="c"># See: http://docs.python.org/library/re.html</span>
+    <span class="c"># </span>
+    <span class="c"># @param s Regular expression to be removed</span>
+    <span class="c"># @param t Replacement string (optional, empty as default)</span>
+    <span class="c"># </span>
+    <span class="k">def</span> <span class="nf">removeFromVarnames</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">s</span><span class="p">,</span><span class="n">t</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">re</span>
+        <span class="n">p</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">setName</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setNamelength</span><span class="p">()</span>
+    <span class="c">##</span>
+    <span class="c"># @brief Remove variables matching string</span>
+    <span class="c"># </span>
+    <span class="c"># For example removeVariables(&quot;BLMEI&quot;) will remove all variables matching the string</span>
+    <span class="k">def</span> <span class="nf">removeVariables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">s</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)</span><span class="o">==</span><span class="n">x</span><span class="p">:</span>
+                            <span class="k">break</span>
+                    <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)</span><span class="o">&gt;</span><span class="n">x</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">!=-</span><span class="mi">1</span><span class="p">:</span>
+                            <span class="k">del</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setNamelength</span><span class="p">()</span>
+    <span class="c">##</span>
+    <span class="c"># No documentation available</span>
+    <span class="k">def</span> <span class="nf">setNamelength</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">=</span><span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="mi">20</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">&lt;</span><span class="nb">len</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">getName</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">getName</span><span class="p">())</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">maxnamelength</span><span class="o">+</span><span class="mi">2</span>
+    
+    <span class="c">##</span>
+    <span class="c"># Return the index of the variables array at given timestamp</span>
+    <span class="c"># </span>
+    <span class="c"># If no value set at exactly timestamp, the last entry before</span>
+    <span class="c"># the timestamp is used. If you turn off the optional flag &#39;before&#39;,</span>
+    <span class="c"># then the first entry after the timestamp will be chosen instead.</span>
+    <span class="c"># If there are no timestamps before or at the one you specified,</span>
+    <span class="c"># then the first value after will be used. The timestamp at the </span>
+    <span class="c"># given index is returned as well.</span>
+    <span class="c"># </span>
+    <span class="c"># @param varname Name of variable</span>
+    <span class="c"># @param timestamp Time stamp of type datetime</span>
+    <span class="c"># @param before optional parameter, default True</span>
+    <span class="c"># @return [indexvalue,timestamp]</span>
+    <span class="k">def</span> <span class="nf">getIndexAtTime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">,</span><span class="n">timestamp</span><span class="p">,</span><span class="n">before</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="n">varid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">findVarID</span><span class="p">(</span><span class="n">varname</span><span class="p">)</span>
+        <span class="n">i</span><span class="o">=</span><span class="mi">0</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">&lt;</span><span class="n">timestamp</span> <span class="ow">and</span> <span class="n">i</span><span class="o">&lt;</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">():</span>
+                <span class="n">i</span><span class="o">+=</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">i</span><span class="o">==</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">():</span> <span class="c">#we hit the end of the array</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">==</span><span class="n">timestamp</span><span class="p">:</span> <span class="c">#we had data at exactly that time</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">before</span> <span class="ow">and</span> <span class="n">i</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c"># you wanted the first data AFTER the time you specified</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span>
+    <span class="c">##</span>
+    <span class="c"># Return all values for the given variable.</span>
+    <span class="c"># @param varname Name of variable</span>
+    <span class="k">def</span> <span class="nf">getValues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">):</span>
+        <span class="n">varid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">findVarID</span><span class="p">(</span><span class="n">varname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">varid</span><span class="o">==</span><span class="bp">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;WARNING: Could not get data for&quot;</span><span class="p">,</span><span class="n">varname</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValues</span><span class="p">()</span>
+                
+    <span class="c">##</span>
+    <span class="c"># Return the value of the variable at given timestamp</span>
+    <span class="c"># </span>
+    <span class="c"># If no value set at exactly timestamp, linear interpolation is done</span>
+    <span class="c"># A numpy.array element will be returned</span>
+    <span class="c"># @param varname Name of variable</span>
+    <span class="c"># @param timestamp Time stamp of type datetime</span>
+    <span class="c"># @return [numpy.array]</span>
+    <span class="k">def</span> <span class="nf">getValAtTime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">,</span><span class="n">timestamp</span><span class="p">):</span>
+        <span class="n">varid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">findVarID</span><span class="p">(</span><span class="n">varname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">varid</span><span class="o">==</span><span class="bp">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;WARNING: Could not return value at given timestamp&quot;</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="n">j</span><span class="o">=</span><span class="mi">0</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">j</span><span class="p">)</span><span class="o">&lt;</span><span class="n">timestamp</span><span class="p">:</span>
+            <span class="n">j</span><span class="o">+=</span><span class="mi">1</span>
+            <span class="k">if</span> <span class="n">j</span><span class="o">==</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span><span class="o">==</span><span class="n">j</span><span class="p">:</span>
+                <span class="c"># in this case we just give the last value...</span>
+                <span class="k">return</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">j</span><span class="p">)</span><span class="o">==</span><span class="n">timestamp</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">interpolatable</span><span class="p">():</span>
+            <span class="n">retvala</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">retvalb</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">j</span><span class="p">))</span>
+            <span class="n">dta</span><span class="o">=</span><span class="p">(</span><span class="n">timestamp</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">microseconds</span>
+            <span class="n">dtb</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">j</span><span class="p">)</span><span class="o">-</span><span class="n">timestamp</span><span class="p">)</span><span class="o">.</span><span class="n">microseconds</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">retvala</span><span class="o">*</span><span class="n">dtb</span><span class="o">+</span><span class="n">retvalb</span><span class="o">*</span><span class="n">dta</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">dta</span><span class="o">+</span><span class="n">dtb</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c">#means we should repeat last given number</span>
+            <span class="k">return</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+    
+    <span class="c">##</span>
+    <span class="c"># @brief give a variable a new unit</span>
+    <span class="c"># </span>
+    <span class="c"># @param varname name of variable</span>
+    <span class="c"># @param newunit the new unit you want to set for variable varname</span>
+    <span class="k">def</span> <span class="nf">setUnit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">,</span><span class="n">newunit</span><span class="p">):</span>
+        <span class="n">varid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">findVarID</span><span class="p">(</span><span class="n">varname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">varid</span><span class="o">!=</span><span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">setUnit</span><span class="p">(</span><span class="n">newunit</span><span class="p">)</span>
+        
+    <span class="c">##</span>
+    <span class="c"># Return the value of the variable at given timestamps</span>
+    <span class="c"># </span>
+    <span class="c"># If no value set at exactly timestamp, linear interpolation is done</span>
+    <span class="c"># A numpy.array element will be returned</span>
+    <span class="c"># @param varname Name of variable</span>
+    <span class="c"># @param timestamps Time stamp of type datetime</span>
+    <span class="k">def</span> <span class="nf">getValAtTimes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">,</span><span class="n">timestamps</span><span class="p">):</span>
+        <span class="n">varid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">findVarID</span><span class="p">(</span><span class="n">varname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">varid</span><span class="o">==</span><span class="bp">None</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;ERROR: Could not find variable&#39;</span><span class="p">,</span><span class="n">varname</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span> <span class="c">#only a necessary check if it is a matrix (like eg BWS data)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">!=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="n">i</span><span class="p">)):</span>
+                    <span class="k">print</span> <span class="s">&#39;ERROR: getValAtTimes() only works for even NxM matrices or vectors&#39;</span>
+                    <span class="k">print</span> <span class="s">&#39; &#39;</span><span class="p">,</span><span class="n">varname</span><span class="p">,</span><span class="s">&#39; has uneven column lengths..&#39;</span>
+                    <span class="k">return</span> <span class="bp">None</span>
+        <span class="n">myy</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getValues</span><span class="p">()</span>
+        <span class="n">mynx</span><span class="o">=</span><span class="n">date2num</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+        <span class="n">myx</span><span class="o">=</span><span class="n">date2num</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">())</span>
+        <span class="n">myytmp</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">myy</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">myy</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">timestamps</span><span class="p">),</span><span class="nb">len</span><span class="p">(</span><span class="n">myy</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">myy</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">myy</span><span class="p">)):</span>
+                <span class="n">myytmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">myy</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">interpolatable</span><span class="p">():</span>
+                <span class="n">outtmp</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">mynx</span><span class="p">,</span><span class="n">myx</span><span class="p">,</span><span class="n">myytmp</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span> <span class="c">#this variable should not be interpolated, but repeated until new value arises:</span>
+                <span class="n">outtmp</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timestamps</span><span class="p">))</span>
+                <span class="n">k</span><span class="o">=</span><span class="mi">0</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mynx</span><span class="p">)):</span>
+                    <span class="k">while</span> <span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="o">&lt;</span><span class="nb">len</span><span class="p">(</span><span class="n">myx</span><span class="p">)</span> <span class="ow">and</span> <span class="n">mynx</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">&gt;</span><span class="n">myx</span><span class="p">[</span><span class="n">k</span><span class="p">]:</span>
+                        <span class="n">k</span><span class="o">+=</span><span class="mi">1</span>
+                    <span class="k">if</span> <span class="n">mynx</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">&lt;</span><span class="n">myx</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="ow">and</span> <span class="n">k</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                        <span class="n">k</span><span class="o">-=</span><span class="mi">1</span>
+                    <span class="n">outtmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">myytmp</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">myy</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">=</span><span class="n">outtmp</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mynx</span><span class="p">)):</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="o">=</span><span class="n">outtmp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">out</span>
+    
+    <span class="c">##</span>
+    <span class="c"># @brief returns maximum value </span>
+    <span class="c"># @param maxvalue if different from zero, maximum value not considered garbage</span>
+    <span class="k">def</span> <span class="nf">getMaxValue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">,</span><span class="n">trange</span><span class="o">=</span><span class="p">[],</span><span class="n">maxvalue</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">varid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">findVarID</span><span class="p">(</span><span class="n">varname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">varid</span><span class="o">==</span><span class="bp">None</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;WARNING: Could not find &quot;</span><span class="o">+</span><span class="n">varname</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getMaxValue</span><span class="p">(</span><span class="n">trange</span><span class="p">,</span><span class="n">maxvalue</span><span class="p">)</span>
+            
+        
+
+    <span class="c">##</span>
+    <span class="c"># @brief Returns an array of timestamps when variable had value equal to value</span>
+    <span class="c"># </span>
+    <span class="k">def</span> <span class="nf">getTimeWhenVal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">,</span><span class="n">value</span><span class="p">):</span>
+        <span class="n">varid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">findVarID</span><span class="p">(</span><span class="n">varname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">varid</span><span class="p">:</span>
+            <span class="n">vindex</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">_getValIndex</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">vindex</span><span class="o">!=</span><span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">varid</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">vindex</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;INFO: &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; not found in &#39;</span><span class="o">+</span><span class="n">varname</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">None</span>
+        
+    <span class="c">##</span>
+    <span class="c"># @brief Export tsv table to a HDF5 tree</span>
+    <span class="c"># </span>
+    <span class="c"># Exports the vectors to a ROOT file. </span>
+    <span class="c"># In order to do so you need to define which variable the time stamps should be taken from.</span>
+    <span class="c"># If you do not, the variable with most entries is chosen.</span>
+    <span class="c"># </span>
+    <span class="c"># @param hfile Name of HDF5 file object that you want the data written in.</span>
+    <span class="c"># @param name Name of group. It will be placed in root of file.</span>
+    <span class="c"># @param description Description of group.</span>
+    <span class="c"># @param basecolumn Optional choice of timestamp column from which other data arae aligned to</span>
+    <span class="c"># @param timestamps Optionally provide an array of timestamps which you want the data aligned to</span>
+    <span class="c"># @return A list containing the tree</span>
+    <span class="c"># </span>
+    <span class="k">def</span> <span class="nf">exportToHDF5</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">hfile</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;LHCdata&quot;</span><span class="p">,</span><span class="n">description</span><span class="o">=</span><span class="s">&quot;Data read from TIMBER&quot;</span><span class="p">,</span><span class="n">basecolumn</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span><span class="n">timestamps</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="kn">import</span> <span class="nn">h5py</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+                <span class="k">print</span> <span class="s">&quot;WARNING: no data in current group, not exporting to HDF5&quot;</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">timestamps</span><span class="o">!=</span><span class="bp">None</span> <span class="ow">and</span> <span class="n">basecolumn</span><span class="o">!=-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&#39;WARNING: You specified both a list of timestamps AND a basecolumn&#39;</span>
+            <span class="k">print</span> <span class="s">&#39; The timestamp array you specified will be used&#39;</span>
+        <span class="k">if</span> <span class="n">timestamps</span><span class="o">==</span><span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+                <span class="k">print</span> <span class="s">&#39;INFO: You did not specify timestamp for this export to HDF5&#39;</span>
+            <span class="k">if</span> <span class="n">basecolumn</span><span class="o">==-</span><span class="mi">1</span><span class="p">:</span> <span class="c"># use the one with the highest number of entries</span>
+                <span class="n">basecolumn</span><span class="o">=</span><span class="mi">0</span>
+                <span class="n">gnv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="n">gnv</span><span class="o">&lt;</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">():</span>
+                    <span class="n">basecolumn</span><span class="o">=</span><span class="n">i</span>
+                    <span class="n">gnv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span>
+            <span class="n">timestamps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()</span>
+        
+        <span class="n">thegroup</span><span class="o">=</span><span class="n">hfile</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">thegroup</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s">&#39;Description&#39;</span><span class="p">]</span><span class="o">=</span><span class="n">description</span>
+        <span class="k">if</span> <span class="n">timestamps</span><span class="o">!=-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">ts</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">timestamps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">microsecond</span><span class="o">*</span><span class="mf">1e-6</span> <span class="o">+</span> <span class="n">timegm</span><span class="p">(</span><span class="n">timestamps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">timetuple</span><span class="p">())</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">timestamps</span><span class="p">))])</span>
+            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+                <span class="k">print</span> <span class="s">&#39;DBG&#39;</span><span class="p">,</span><span class="n">numpy</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">ts</span><span class="p">),</span><span class="n">ts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">thegroup</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s">&#39;Timestamps&#39;</span><span class="p">,</span><span class="n">numpy</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">ts</span><span class="p">),</span><span class="s">&#39;=f8&#39;</span><span class="p">,</span><span class="n">ts</span><span class="p">,</span><span class="n">compression</span><span class="o">=</span><span class="s">&#39;gzip&#39;</span><span class="p">,</span> <span class="n">compression_opts</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">vals</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s">&#39;Units&#39;</span><span class="p">]</span><span class="o">=</span><span class="s">&#39;seconds&#39;</span>
+            <span class="n">vals</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s">&#39;Description&#39;</span><span class="p">]</span><span class="o">=</span><span class="s">&#39;UNIX timestamp, ie. seconds since 1.1.1970&#39;</span>
+        <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">timestamps</span><span class="o">==-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">myv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getValues</span><span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">getName</span><span class="p">())</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">myv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getValAtTimes</span><span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="n">timestamps</span><span class="p">)</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">thegroup</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="n">numpy</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">myv</span><span class="p">),</span><span class="s">&#39;=f4&#39;</span><span class="p">,</span><span class="n">myv</span><span class="p">,</span><span class="n">compression</span><span class="o">=</span><span class="s">&#39;gzip&#39;</span><span class="p">,</span> <span class="n">compression_opts</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">vals</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s">&#39;Units&#39;</span><span class="p">]</span><span class="o">=</span><span class="n">el</span><span class="o">.</span><span class="n">getUnit</span><span class="p">()</span>
+            <span class="n">vals</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s">&#39;Description&#39;</span><span class="p">]</span><span class="o">=</span><span class="n">el</span><span class="o">.</span><span class="n">getDescription</span><span class="p">()</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    
+    <span class="c">##</span>
+    <span class="c"># @brief Export tsv table to a root tree</span>
+    <span class="c"># </span>
+    <span class="c"># Exports the vectors to a ROOT file. </span>
+    <span class="c"># In order to do so you need to define which variable the time stamps should be taken from.</span>
+    <span class="c"># If you do not, the variable with most entries is chosen.</span>
+    <span class="c"># </span>
+    <span class="c"># Expert option: timestamps==-1 means that the timestamps will NOT be added to the tree</span>
+    <span class="c"># </span>
+    <span class="c"># @todo this fails for matrices</span>
+    <span class="c"># @return A list containing the tree</span>
+    <span class="c"># </span>
+    <span class="k">def</span> <span class="nf">exportToROOT</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">fillnumber</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;LHCdata&quot;</span><span class="p">,</span><span class="n">description</span><span class="o">=</span><span class="s">&quot;Data read from TIMBER&quot;</span><span class="p">,</span><span class="n">basecolumn</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span><span class="n">timestamps</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">ROOT</span> <span class="kn">import</span> <span class="n">gROOT</span><span class="p">,</span> <span class="n">TTree</span><span class="p">,</span> <span class="n">TObject</span><span class="p">,</span><span class="n">TMatrixD</span>
+                
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+                <span class="k">print</span> <span class="s">&quot;WARNING: no data in current group, not exporting to ROOT&quot;</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="c">#</span>
+        <span class="c"># Seems someone is trying to write None-vars into the object, </span>
+        <span class="c"># I need to check for that :(</span>
+        <span class="c">#  </span>
+        <span class="n">j</span><span class="o">=</span><span class="mi">0</span>
+        <span class="k">while</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">haveNone</span><span class="p">():</span>
+                <span class="k">print</span> <span class="s">&#39;WARNING:&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="s">&#39;had a None-type in the values.</span><span class="se">\n\t</span><span class="s">I have to delete it before exporting to ROOT.&#39;</span>
+                <span class="k">del</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">j</span><span class="o">+=</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">timestamps</span> <span class="ow">and</span> <span class="n">basecolumn</span><span class="o">!=-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;WARNING: You specified both a list of timestamps AND a basecolumn&#39;</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;         The timestamp array you specified will be used&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">timestamps</span> <span class="ow">or</span> <span class="n">timestamps</span><span class="o">==-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;INFO: You did not specify timestamp for this export to ROOT&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">basecolumn</span><span class="o">==-</span><span class="mi">1</span><span class="p">:</span> <span class="c"># use the one with the highest number of entries</span>
+                <span class="n">basecolumn</span><span class="o">=</span><span class="mi">0</span>
+                <span class="n">gnv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+                        <span class="k">if</span> <span class="n">gnv</span><span class="o">&lt;</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">():</span>
+                                <span class="n">basecolumn</span><span class="o">=</span><span class="n">i</span>
+                                <span class="n">gnv</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getNumValues</span><span class="p">()</span>
+                    
+            <span class="n">exportablevals</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">getValAtTimes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">())</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">))</span> <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">gnv</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+            <span class="n">exportablevals</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">getValAtTimes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">(),</span><span class="n">timestamps</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">))]</span>
+        <span class="n">vtree</span><span class="o">=</span><span class="n">TTree</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="n">description</span><span class="p">)</span>
+        <span class="n">fnum</span><span class="o">=</span><span class="n">array</span><span class="p">(</span><span class="s">&#39;i&#39;</span><span class="p">,[</span><span class="n">fillnumber</span><span class="p">])</span>
+        <span class="n">trickarrays</span><span class="o">=</span><span class="p">[</span><span class="n">array</span><span class="p">(</span><span class="s">&#39;d&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mf">0.</span><span class="p">])]</span>
+        <span class="n">vtree</span><span class="o">.</span><span class="n">Branch</span><span class="p">(</span><span class="s">&#39;fillnumber&#39;</span><span class="p">,</span><span class="n">fnum</span><span class="p">,</span><span class="s">&#39;fillnumber/I&#39;</span><span class="p">)</span>
+        <span class="n">blist</span><span class="o">=</span><span class="p">[]</span>
+        <span class="k">if</span> <span class="n">timestamps</span><span class="o">!=-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">blist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vtree</span><span class="o">.</span><span class="n">Branch</span><span class="p">(</span><span class="s">&#39;Timestamps&#39;</span><span class="p">,</span><span class="n">trickarrays</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="s">&#39;Timestamps/D&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">trickarrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="s">&#39;f&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mf">0.</span><span class="p">]))</span> <span class="c"># tricking ROOT</span>
+                <span class="n">blist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vtree</span><span class="o">.</span><span class="n">Branch</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">getROOTName</span><span class="p">(),</span><span class="n">trickarrays</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="n">elem</span><span class="o">.</span><span class="n">getROOTName</span><span class="p">()</span><span class="o">+</span><span class="s">&#39;/&#39;</span><span class="o">+</span><span class="n">elem</span><span class="o">.</span><span class="n">getROOTformat</span><span class="p">()))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">trickarrays</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="s">&#39;f&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">*</span><span class="p">[</span><span class="mf">0.</span><span class="p">]))</span>
+                <span class="n">blist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vtree</span><span class="o">.</span><span class="n">Branch</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">getROOTName</span><span class="p">(),</span><span class="n">trickarrays</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="n">elem</span><span class="o">.</span><span class="n">getROOTName</span><span class="p">()</span><span class="o">+</span><span class="s">&#39;[&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">+</span><span class="s">&#39;]/&#39;</span><span class="o">+</span><span class="n">elem</span><span class="o">.</span><span class="n">getROOTformat</span><span class="p">()))</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">gnv</span><span class="p">):</span>
+            <span class="c"># unix timestamp with microsecond accuracy (root stores a double from this, so about 10ms accuracy)</span>
+            <span class="k">if</span> <span class="n">timestamps</span><span class="o">==</span><span class="bp">None</span><span class="p">:</span>
+                <span class="n">trickarrays</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">microsecond</span><span class="o">*</span><span class="mf">1e-6</span> <span class="o">+</span> <span class="n">timegm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">basecolumn</span><span class="p">]</span><span class="o">.</span><span class="n">getTimestamp</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">timetuple</span><span class="p">())</span> 
+                <span class="n">jstart</span><span class="o">=</span><span class="mi">1</span> <span class="c"># we include timestamps, so actual data should start at index 1 in trickarrays..</span>
+            <span class="k">elif</span> <span class="n">timestamps</span><span class="o">!=-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">trickarrays</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">=</span> <span class="n">timestamps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">microsecond</span><span class="o">*</span><span class="mf">1e-6</span> <span class="o">+</span> <span class="n">timegm</span><span class="p">(</span><span class="n">timestamps</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">timetuple</span><span class="p">())</span> 
+                <span class="n">jstart</span><span class="o">=</span><span class="mi">1</span> <span class="c"># we include timestamps, so actual data should start at index 1 in trickarrays..</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">jstart</span><span class="o">=</span><span class="mi">0</span> <span class="c"># we do NOT include timestamps, so actual data should start at index 0 in trickarrays..</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">trickarrays</span><span class="p">[</span><span class="n">j</span><span class="o">+</span><span class="n">jstart</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">=</span><span class="n">exportablevals</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">getValue</span><span class="p">(</span><span class="mi">0</span><span class="p">))):</span>
+                        <span class="n">trickarrays</span><span class="p">[</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">=</span><span class="n">exportablevals</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">vtree</span><span class="o">.</span><span class="n">Fill</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">vtree</span><span class="p">]</span>
+    <span class="c">##</span>
+    <span class="c"># @brief Return the index of a given element.</span>
+    <span class="c"># </span>
+    <span class="c"># @param varname the name of the element</span>
+    <span class="k">def</span> <span class="nf">findVarID</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">==</span><span class="n">varname</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">i</span>
+        <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;INFO: Could not find variable:&quot;</span><span class="p">,</span> <span class="n">varname</span>
+        <span class="k">return</span> <span class="bp">None</span>
+    
+    <span class="c">##</span>
+    <span class="c"># @brief Returns an array of all the timestamps held by the element</span>
+    <span class="c"># @param varname Name of element</span>
+    <span class="k">def</span> <span class="nf">getTimestamps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">varname</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elementlist</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">el</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span><span class="o">==</span><span class="n">varname</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">el</span><span class="o">.</span><span class="n">getTimestamps</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;INFO: Could not find variable:&quot;</span><span class="p">,</span> <span class="n">varname</span>
+        <span class="k">return</span> <span class="bp">None</span>
+        
+</pre></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">PyLHC v0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Riccardo de Maria, Yngve Inntjore Levinsen.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.8.
+    </div>
+  </body>
+</html>

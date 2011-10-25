@@ -1,0 +1,176 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>PyLHC packages &mdash; PyLHC v0 documentation</title>
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="PyLHC v0 documentation" href="../index.html" />
+    <link rel="prev" title="Welcome to PyLHC’s documentation!" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="Welcome to PyLHC’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">PyLHC v0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="pylhc-packages">
+<h1>PyLHC packages<a class="headerlink" href="#pylhc-packages" title="Permalink to this headline">¶</a></h1>
+<p>Here you find automatic documentation of the pacages.</p>
+<div class="section" id="module-cern-data-tsv">
+<h2>Module cern.data.tsv<a class="headerlink" href="#module-cern-data-tsv" title="Permalink to this headline">¶</a></h2>
+<span class="target" id="module-cern.data.tsv"></span><dl class="class">
+<dt id="cern.data.tsv.TSVlist">
+<em class="property">class </em><tt class="descclassname">cern.data.tsv.</tt><tt class="descname">TSVlist</tt><big>(</big><em>inputfile=''</em><big>)</big><a class="reference internal" href="../_modules/cern/data/tsv.html#TSVlist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.data.tsv.TSVlist" title="Permalink to this definition">¶</a></dt>
+<dd><p>TSV list object, give a TSV file name as input when initializing.</p>
+<dl class="method">
+<dt id="cern.data.tsv.TSVlist.readFile">
+<tt class="descname">readFile</tt><big>(</big><em>tsvfile</em><big>)</big><a class="reference internal" href="../_modules/cern/data/tsv.html#TSVlist.readFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.data.tsv.TSVlist.readFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read in a tab separated TSV file to object</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>tsvfile (str): Name of file</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="cern.data.tsv.date2num">
+<tt class="descclassname">cern.data.tsv.</tt><tt class="descname">date2num</tt><big>(</big><em>dt</em><big>)</big><a class="reference internal" href="../_modules/cern/data/tsv.html#date2num"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.data.tsv.date2num" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stolen from matplotlib</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-cern.data.tfs">
+<span id="module-cern-data-tfs"></span><h2>Module cern.data.tfs<a class="headerlink" href="#module-cern.data.tfs" title="Permalink to this headline">¶</a></h2>
+<p>Read and write data in the TFS format
+Usage:</p>
+<blockquote>
+<div>data=load(fh):  Load data from a file object
+data=open(fn):  Load data from a file name
+dump(data,fh):  Dump data in file object</div></blockquote>
+<dl class="function">
+<dt id="cern.data.tfs.dump">
+<tt class="descclassname">cern.data.tfs.</tt><tt class="descname">dump</tt><big>(</big><em>data</em>, <em>fh</em><big>)</big><a class="reference internal" href="../_modules/cern/data/tfs.html#dump"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.data.tfs.dump" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump data encoded in the TFS format in a file object
+Usage:</p>
+<blockquote>
+<div>dump(data,fh)</div></blockquote>
+</dd></dl>
+
+<dl class="function">
+<dt id="cern.data.tfs.load">
+<tt class="descclassname">cern.data.tfs.</tt><tt class="descname">load</tt><big>(</big><em>fh</em><big>)</big><a class="reference internal" href="../_modules/cern/data/tfs.html#load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.data.tfs.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load data encoded in the TFS format from a file object
+Usage:</p>
+<blockquote>
+<div>data=load(fh)</div></blockquote>
+</dd></dl>
+
+<dl class="function">
+<dt id="cern.data.tfs.open">
+<tt class="descclassname">cern.data.tfs.</tt><tt class="descname">open</tt><big>(</big><em>fn</em><big>)</big><a class="reference internal" href="../_modules/cern/data/tfs.html#open"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.data.tfs.open" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load data encoded in the TFS format from a file name
+Usage:</p>
+<blockquote>
+<div>data=load(fn)</div></blockquote>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">PyLHC packages</a><ul>
+<li><a class="reference internal" href="#module-cern-data-tsv">Module cern.data.tsv</a></li>
+<li><a class="reference internal" href="#module-cern.data.tfs">Module cern.data.tfs</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../index.html"
+                        title="previous chapter">Welcome to PyLHC&#8217;s documentation!</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../_sources/cern/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="Welcome to PyLHC’s documentation!"
+             >previous</a> |</li>
+        <li><a href="../index.html">PyLHC v0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Riccardo de Maria, Yngve Inntjore Levinsen.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.8.
+    </div>
+  </body>
+</html>
