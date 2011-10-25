@@ -50,9 +50,49 @@
   <div class="section" id="pylhc-packages">
 <h1>PyLHC packages<a class="headerlink" href="#pylhc-packages" title="Permalink to this headline">¶</a></h1>
 <p>Here you find automatic documentation of the pacages.</p>
-<div class="section" id="module-cern-data-tsv">
-<h2>Module cern.data.tsv<a class="headerlink" href="#module-cern-data-tsv" title="Permalink to this headline">¶</a></h2>
-<span class="target" id="module-cern.data.tsv"></span><dl class="class">
+<div class="section" id="module-cern-timber">
+<h2>Module cern.timber<a class="headerlink" href="#module-cern-timber" title="Permalink to this headline">¶</a></h2>
+<p>Module for extracting data through the TIMBER
+logging interface.</p>
+<span class="target" id="module-cern.timber"></span><dl class="function">
+<dt id="cern.timber.cat_files">
+<tt class="descclassname">cern.timber.</tt><tt class="descname">cat_files</tt><big>(</big><em>filelist</em>, <em>filename</em><big>)</big><a class="reference internal" href="../_modules/cern/timber.html#cat_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.timber.cat_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Concatenate files in filelist into new file filename</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cern.timber.get_file_directory">
+<tt class="descclassname">cern.timber.</tt><tt class="descname">get_file_directory</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/cern/timber.html#get_file_directory"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.timber.get_file_directory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns folder path where output files are stored</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cern.timber.get_from_timber">
+<tt class="descclassname">cern.timber.</tt><tt class="descname">get_from_timber</tt><big>(</big><em>data</em>, <em>filename</em>, <em>fillnumber=0</em>, <em>arguments=''</em>, <em>overwrite=False</em>, <em>dataformat='TSV'</em>, <em>minfilesize=1000</em><big>)</big><a class="reference internal" href="../_modules/cern/timber.html#get_from_timber"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.timber.get_from_timber" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a set of data from TIMBER and store it in file filename.dataformat</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>data</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#list" title="(in Python v2.7)"><em>list</em></a>) &#8211; Can also be comma-separated string. List of variable names to extract.</li>
+<li><strong>filename</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; Name of file where data is stored, as filename.dataformat</li>
+<li><strong>fillnumber</strong> (<em>integer</em>) &#8211; Which fill number to extract from, otherwise latest data.</li>
+<li><strong>arguments</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; Additional arguments to pass to the java command (expert option)</li>
+<li><strong>overwrite</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; if True, overwrites file if it already exist.</li>
+<li><strong>dataformat</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; Type of formatting in the output file.</li>
+<li><strong>minfilesize</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; Minimum size of file in bytes for successful extraction (expert option)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-cern.data.tsv">
+<span id="module-cern-data-tsv"></span><h2>Module cern.data.tsv<a class="headerlink" href="#module-cern.data.tsv" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
 <dt id="cern.data.tsv.TSVlist">
 <em class="property">class </em><tt class="descclassname">cern.data.tsv.</tt><tt class="descname">TSVlist</tt><big>(</big><em>inputfile=''</em><big>)</big><a class="reference internal" href="../_modules/cern/data/tsv.html#TSVlist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cern.data.tsv.TSVlist" title="Permalink to this definition">¶</a></dt>
 <dd><p>TSV list object, give a TSV file name as input when initializing.</p>
@@ -122,7 +162,8 @@ Usage:</p>
   <h3><a href="../index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">PyLHC packages</a><ul>
-<li><a class="reference internal" href="#module-cern-data-tsv">Module cern.data.tsv</a></li>
+<li><a class="reference internal" href="#module-cern-timber">Module cern.timber</a></li>
+<li><a class="reference internal" href="#module-cern.data.tsv">Module cern.data.tsv</a></li>
 <li><a class="reference internal" href="#module-cern.data.tfs">Module cern.data.tfs</a></li>
 </ul>
 </li>
