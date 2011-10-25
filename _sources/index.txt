@@ -21,6 +21,8 @@ Repository can be found at http://github.com/pylhc/PyLHC
 
 Bugs and wishes can be reported at http://github.com/pylhc/PyLHC/issues
 
+The project is licensed under LGPL v. 3, see the LICENSE file in the project repository.
+
 Contents:
 
 .. toctree::
