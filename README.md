@@ -10,9 +10,9 @@ The following links might be helpful:
 
 ## Packages
  
-- [Beta-Beat.src](https://github.com/pylhc/Beta-Beat.src)) (Python 2.7, [Documentation](https://pylhc.github.io/Beta-Beat.src))
-- [OMC3](https://github.com/pylhc/omc3)) (Python 3.6, [Documentation](https://pylhc.github.io/omc3))
-- [Tools](https://github.com/pylhc/pylhc)) (Python 3.6, [Documentation](https://pylhc.github.io/pylhc))
+- [Beta-Beat.src](https://github.com/pylhc/Beta-Beat.src) (Python 2.7, [Documentation](https://pylhc.github.io/Beta-Beat.src)
+- [OMC3](https://github.com/pylhc/omc3) (Python 3.6, [Documentation](https://pylhc.github.io/omc3))
+- [Tools](https://github.com/pylhc/pylhc) (Python 3.6, [Documentation](https://pylhc.github.io/pylhc))
 
 ## More Documentation
 
