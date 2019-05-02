@@ -1,4 +1,3 @@
-<img src="https://twiki.cern.ch/twiki/pub/BEABP/Logos/OMC_logo.png" height="28"> 
 # pyLHC Packages
 
 Welcome to the github repository of the optics measurements and corrections group (OMC).
@@ -20,6 +19,8 @@ The following links might be helpful:
 - General documentation can be found in the [Twiki](https://twiki.cern.ch/twiki/bin/view/BEABP/OMC)
 
 ## Authors
+
+<img src="https://twiki.cern.ch/twiki/pub/BEABP/Logos/OMC_logo.png" height="28"> 
 
 * **pyLHC/OMC-Team** - *Working Group* - [pyLHC](https://github.com/orgs/pylhc/teams/omc-team)
 
