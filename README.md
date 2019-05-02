@@ -1,4 +1,5 @@
-# <img src="https://twiki.cern.ch/twiki/pub/BEABP/Logos/OMC_logo.png" height="28"> pyLHC Packages
+<img src="https://twiki.cern.ch/twiki/pub/BEABP/Logos/OMC_logo.png" height="28"> 
+# pyLHC Packages
 
 Welcome to the github repository of the optics measurements and corrections group (OMC).
 
@@ -10,7 +11,7 @@ The following links might be helpful:
 
 ## Packages
  
-- [Beta-Beat.src](https://github.com/pylhc/Beta-Beat.src) (Python 2.7, [Documentation](https://pylhc.github.io/Beta-Beat.src)
+- [Beta-Beat.src](https://github.com/pylhc/Beta-Beat.src) (Python 2.7, [Documentation](https://pylhc.github.io/Beta-Beat.src))
 - [OMC3](https://github.com/pylhc/omc3) (Python 3.6, [Documentation](https://pylhc.github.io/omc3))
 - [Tools](https://github.com/pylhc/pylhc) (Python 3.6, [Documentation](https://pylhc.github.io/pylhc))
 
