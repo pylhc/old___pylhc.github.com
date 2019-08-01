@@ -14,6 +14,10 @@ The following links might be helpful:
 - [OMC3](https://github.com/pylhc/omc3) (Python 3.6, [Documentation](https://pylhc.github.io/omc3))
 - [Tools](https://github.com/pylhc/pylhc) (Python 3.6, [Documentation](https://pylhc.github.io/pylhc))
 
+- [TFS-Pandas](https://github.com/pylhc/tfs) (Python 3.6, [Documentation](https://pylhc.github.io/tfs))
+- [SDDS-Reader](https://github.com/pylhc/sdds) (Python 3.6, [Documentation](https://pylhc.github.io/sdds))
+
+
 ## More Documentation
 
 - General documentation can be found in the [Twiki](https://twiki.cern.ch/twiki/bin/view/BEABP/OMC)
