@@ -16,7 +16,7 @@ The following links might be helpful:
 
 - [TFS-Pandas](https://github.com/pylhc/tfs) (Python 3.6, [Documentation](https://pylhc.github.io/tfs))
 - [SDDS-Reader](https://github.com/pylhc/sdds) (Python 3.6, [Documentation](https://pylhc.github.io/sdds))
-
+- [Generic-Parser](https://github.com/pylhc/generic_parser) (Python 3.6, [Documentation](https://pylhc.github.io/generic_parser))
 
 ## More Documentation
 
