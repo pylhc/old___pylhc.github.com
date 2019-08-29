@@ -12,7 +12,7 @@ The following links might be helpful:
  
 - [Beta-Beat.src](https://github.com/pylhc/Beta-Beat.src) (Python 2.7, [Documentation](https://pylhc.github.io/Beta-Beat.src))
 - [OMC3](https://github.com/pylhc/omc3) (Python 3.6, [Documentation](https://pylhc.github.io/omc3))
-- [Tools](https://github.com/pylhc/pylhc) (Python 3.6, [Documentation](https://pylhc.github.io/pylhc))
+- [Tools](https://github.com/pylhc/pylhc) (Python 3.6, [Documentation](https://pylhc.github.io/PyLHC))
 
 - [TFS-Pandas](https://github.com/pylhc/tfs) (Python 3.6, [Documentation](https://pylhc.github.io/tfs))
 - [SDDS-Reader](https://github.com/pylhc/sdds) (Python 3.6, [Documentation](https://pylhc.github.io/sdds))
